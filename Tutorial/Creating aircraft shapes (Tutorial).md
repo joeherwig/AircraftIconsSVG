@@ -20,6 +20,7 @@ by RexKramer1
     - [Add Layer „Outline“](#add-layer--outline-)
     - [Add Layer „Accent“](#add-layer--accent-)
     - [Create svg-file](#create-svg-file)
+    - [Normalize viewBox and Stroke Width](#normalize-viewbox-and-stroke-width)
     - [Read out parameters for use in tar1090](#read-out-parameters-for-use-in-tar1090)
     - [Export svg to png](#export-svg-to-png)
   - [Add new aircraft shape to BelugaProject](#add-new-aircraft-shape-to-belugaproject)
@@ -293,6 +294,74 @@ Select Layer „Background Image“ and delete it by pressing the „Minus“-Bu
 <p align="center"> <img alt="InkscapeSaveFileAsCopy.png" src="./Images/InkscapeSaveFileAsCopy.png" width="75%"/>
 
 Save file **as a copy** (important!) with filename `B722.svg`.
+
+#### Normalize viewBox and Stroke Width
+
+The normalization is handled by the script **`normalize_icons.py`** in the project root. It requires **Python 3.6+** and no third-party packages.
+
+The script applies two rules to every SVG in the `Shapes SVG` folder:
+
+**Rule 1 — ViewBox size (relative aircraft sizing)**
+
+Each aircraft's icon is sized proportionally to its real-world bounding box (1 mm = 1 m). The largest aircraft fills `--max-size-percent` of the canvas, the smallest fills `--min-size-percent`:
+
+```
+fill_ratio   = min% + (max% - min%) × (aircraft_size - global_min) / (global_max - global_min)
+viewBox_size = max(bbox_width, bbox_height) / fill_ratio
+viewBox      = "cx-size/2  cy-size/2  size  size"
+```
+
+**Rule 2 — Stroke width (4.15 ‰ baseline)**
+
+All stroke widths are scaled so that the rendered line thickness is identical across every icon:
+
+```
+stroke-width [px] = viewBox_size × 0.00415 × (stroke-width-percent / 100)
+```
+
+**Running the script**
+
+Open a terminal in the project root folder and run:
+
+```
+python normalize_icons.py [options]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--min-size-percent N` | 42.5 | Smallest aircraft fills N % of its canvas |
+| `--max-size-percent N` | 95 | Largest aircraft fills N % of its canvas |
+| `--stroke-width-percent N` | 100 | Stroke width relative to the 4.15 ‰ baseline (100 = standard) |
+| `--dry-run` | — | Preview calculated values without writing files |
+| `--help` | — | Show usage information |
+
+**Examples**
+
+```
+# Apply current standard settings (42.5 % .. 95 %, standard stroke)
+python normalize_icons.py
+
+# Preview only - no files changed
+python normalize_icons.py --dry-run
+
+# Reduce maximum fill to 90 % and use 20 % thicker strokes
+python normalize_icons.py --max-size-percent 90 --stroke-width-percent 120
+
+# Wider size range: 30 % .. 95 %
+python normalize_icons.py --min-size-percent 30 --max-size-percent 95
+```
+
+The script is safe to re-run: running it twice with the same settings leaves all files unchanged. After adding a new SVG to the collection, always re-run normalization so the new aircraft's bounding box is included in the global size range.
+
+**Current normalization values (default settings)**
+
+| Aircraft | Size (mm) | Canvas fill | ViewBox size | stroke-width |
+|---|---|---|---|---|
+| A225 (Antonov An-225) | 86.3 | 95.0 % | 90.89 | 0.377190 px |
+| A388 (Airbus A380-800) | 79.4 | 90.4 % | 87.89 | 0.364762 px |
+| A20N (Airbus A320 neo) | 37.2 | 62.0 % | 59.95 | 0.248792 px |
+| C172 (Cessna 172) | 11.1 | 44.6 % | 24.92 | 0.103426 px |
+| E300 (Extra 300) | 8.0 | 42.5 % | 18.93 | 0.078545 px |
 
 #### Read out parameters for use in tar1090
 
